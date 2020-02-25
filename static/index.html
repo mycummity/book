@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<title>Document</title>
+	<link rel="stylesheet" href="css/index.css">
+	<script src="../lib/vue.js"></script>
+	<script src="https://cdn.jsdelivr.net/npm/vue-resource@1.5.1"></script>
+</head>
+<body>
+	<div id="app">
+		<div class="wrapper">
+			<!-- 顶部操作框 -->
+			<div class="book">
+				<div>
+					<label for="id">编号：</label>
+					<input type="text" id="id" v-model="id" :disabled="flag" v-focus>
+				</div>
+				<div>
+					<label for="name">名称：</label>
+					<!-- @keydown.ente 按enter进行快捷键添加数据 -->
+					<input type="text" id="name" v-model="name" @keydown.enter="add">
+				</div>
+				<div>
+					<input type="button" value="添加" @click="add" :disabled="addFlag"></input>
+				</div>
+				<div>
+					<label for="search">搜索：</label>
+					<input type="text" id="search" v-model:value="keywords">
+				</div>
+			</div>
+			<!-- 表格 -->
+			<table border="1" cellpadding="10" cellspacing="10">
+				<thead>
+					<th>编号</th>
+					<th>名称</th>
+					<th>时间</th>
+					<th>操作</th>
+				</thead>
+				<tbody>
+					<tr v-for="(item,index) in search()" :key="item.id">
+						<td>{{ item.id }}</td>
+						<td>{{ item.name }}</td>
+						<td>{{ item.ctime | fomateDate }}</td>
+						<td>
+							<a href="#" @click.prevent="del(index,item.id)">删除</a>
+							<span>|</span>
+							<a href="#" @click.prevent="update(item.id)">修改</a>
+						</td>
+					</tr>
+				</tbody>
+			</table>
+			<div class="total">图书总数：{{ total }}</div>
+		</div>
+	</div>
+</body>
+<script>
+	// 如果Web服务器无法处理编码为application/json的请求，启用该选项后，请求会以application/x-www-form-urlencoded作为MIME type，就像普通的HTML表单一样；使用post方式时，第三个参数一般都是一样的，全局定义可省略重复写的过程
+	Vue.http.options.emulateJSON = true
+	new Vue ({
+		el: "#app",
+		data: {
+			id: "",
+			name: "",
+			// 搜索框关键字
+			keywords: "",
+			// 编号框使用
+			flag: false,
+			// 添加按钮使用
+			addFlag: false,
+			list: []
+		},
+		methods:{
+			// 添加数据
+			add(){
+				// 判断输入框是否为空
+				if (this.id == "" || this.name == "") {
+					return false;
+				};
+				// 定义插入数据
+				let data = {id:this.id,name:this.name,ctime:new Date().toUTCString()};
+				// 判断编号框是否禁用（点击修改时禁用）
+				if (this.flag) {
+					// 调用后端接口，修改数据
+					this.$http.post('http://localhost/php/book/index.php?m=api&a=update&id='+this.id,data).then((res) => {
+							// console.log(res)
+							if (res.body.code == 200) {
+								// 修改成功后重新获取数据
+								this.getData();
+							}else{
+								alert(res.body.msg);
+							}
+						},(res) => {
+							alert('出错了')
+					})
+					this.flag = false;
+				}else{
+					// 调用后端接口，插入数据
+					this.$http.post('http://localhost/php/book/index.php?m=api&a=add',data).then((res) => {
+						// console.log(res)
+						if (res.body.code == 200) {
+							this.list.push(data);
+						}else{
+							alert(res.body.msg);
+						}
+					},(res) => {
+						alert('出错了')
+					})
+				}
+				// 添加数据后，清空输入框内容
+				this.id = this.name = "";
+			},
+			// 删除数据
+			del(index,id){
+				// 调用后端接口，删除数据，必须传参id
+				this.$http.post('http://localhost/php/book/index.php?m=api&a=delete&id='+id).then((res) => {
+					// console.log(res)
+					if (res.body.code == 200) {
+						// 修改数据时点击删除后，解除编号框禁用并清空输入框内容
+						if (this.flag) {
+							this.id = this.name = "";
+							this.flag = false
+						}
+						// 删除当前点击数据
+						this.list.splice(index,1);
+					}else{
+						alert(res.body.msg);
+					}
+				},(res) => {
+					alert('出错了')
+				})
+			},
+			// 更新数据
+			update(id){
+				// 禁用编号框
+				this.flag = true;
+				// 过滤表单所有数据，返回点击修改的那条数据
+				let book = this.list.filter((item) => {
+					// console.log(item) object
+					return item.id == id;
+				})
+				// console.log(book) array
+				// 将返回的数据赋值给输入框
+				this.id = book[0].id;
+				this.name = book[0].name;
+			},
+			// 搜索数据
+			search(){
+				// 过滤表单所有数据，返回输入框中匹配到的表单数据
+				// indexOf 返回指定字符在字符串中第一次出现处的索引，如果此字符串中没有这样的字符，则返回 -1
+				return this.list.filter((item) => {
+					if (item.name.indexOf(this.keywords) != -1) {
+						return true;
+					}
+					return false;
+				})
+			},
+			// 获取数据
+			getData(){
+				this.$http.get('http://localhost/php/book/index.php?m=api&a=get').then((res) => {
+					// console.log(res)
+					// 判断后端数据是否存在，若不存在，res.body=[]
+					if (res.body.re) {
+						this.list = res.body.re;
+					}else{
+						this.list = res.body;
+					}
+				},(res) => {
+					alert('出错了')
+				})
+			}
+		},
+		directives: {
+			// 自动获取焦点
+			focus: {
+				inserted(el){
+					el.focus();
+				}
+			}
+		},
+		computed: {
+			// 计算图书总数
+			total(){
+				return this.list.length;
+			}
+		},
+		watch: {
+			name(val){
+				// 检测数组中的元素是否满足指定条件，some() 方法会依次执行数组的每个元素：
+				// 如果有一个元素满足条件，则表达式返回true , 剩余的元素不会再执行检测
+				// 如果没有满足条件的元素，则返回false
+				// 过滤所有表单，名称输入框里的数据与表单数据name相等，返回true，反之false
+				let flag = this.list.some((item) => {
+					return item.name == this.name;
+				})
+				// 根据名称输入框内容判断添加按钮是否禁用
+				if (flag) {
+					this.addFlag = true;
+				}else{
+					this.addFlag = false;
+				}
+			}
+		},
+		// 初始化页面数据
+		created(){
+			this.getData();
+		},
+		filters: {
+            // 格式化日期
+            fomateDate(data) {
+                let date = new Date(data);
+                let y = date
+                    .getFullYear();
+                let m = (date.getMonth() + 1).toString().padStart(2, '0');
+                // padStart(2, '0'): 在小于10的月份前添加0，如01
+                let d = date
+                    .getDate()
+                    .toString()
+                    .padStart(2, '0');
+                let h = date
+                    .getHours()
+                    .toString()
+                    .padStart(2, '0');
+                let min = date
+                    .getMinutes()
+                    .toString()
+                    .padStart(2, '0');
+                let s = date
+                    .getSeconds()
+                    .toString()
+                    .padStart(2, '0');
+
+                return `${y}-${m}-${d} ${h}:${min}:${s}`;
+            }
+        }
+	})
+</script>
+</html>

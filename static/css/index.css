@@ -1,0 +1,30 @@
+.wrapper{
+	width: 750px;
+	height: 300px;
+	position: absolute;
+	left: 0;
+	right: 0;
+	top: 0;
+	bottom: 0;
+	margin: auto;
+}
+/*表格*/
+table{
+	border-collapse: collapse;
+	width: 100%;
+	text-align: center;
+}
+/*图书总数*/
+.total{
+	width: 100%;
+	border: 1px solid #000;
+	border-top: 0;
+	padding: 10px;
+	box-sizing: border-box;
+}
+/*顶部操作框*/
+.book{
+	display: flex;
+	justify-content: space-between;
+	padding: 20px 0;
+}
